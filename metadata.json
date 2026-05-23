@@ -1,0 +1,6 @@
+{
+  "name": "StockSync Pro",
+  "description": "Organizador de estoque inteligente, tempo real, com painel estilo Bento Grid, controle de vendas, lucros e relatórios de alterações.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
