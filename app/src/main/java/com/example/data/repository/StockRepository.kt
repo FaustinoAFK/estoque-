@@ -266,53 +266,62 @@ class StockRepository(
                 }
                 _syncOnline.value = true
             } else {
-                // Determine newer data and perform Merge
-                val isRemoteNewer = remoteState.lastUpdated > lastSyncTime
-
                 // 1. Merge Stock Items
-                // Map by ID for quick lookup and selection
                 val remoteItemMap = remoteState.items.associateBy { it.id }
                 val localItemMap = localItems.associateBy { it.id }
                 
                 val mergedItems = mutableListOf<StockItem>()
                 val allIds = remoteItemMap.keys + localItemMap.keys
-                var localChanged = false
+                var localItemsChanged = false
 
                 for (id in allIds) {
                     val r = remoteItemMap[id]
                     val l = localItemMap[id]
                     if (r != null && l != null) {
-                        // Conflict! Compare lastUpdatedAt
                         if (r.lastUpdatedAt >= l.lastUpdatedAt) {
                             mergedItems.add(r)
-                            if (r != l) localChanged = true
+                            if (r.quantity != l.quantity || r.name != l.name || r.unitCost != l.unitCost || r.unitPrice != l.unitPrice) {
+                                localItemsChanged = true
+                            }
                         } else {
                             mergedItems.add(l)
-                            localChanged = true
                         }
                     } else if (r != null) {
-                        // Only on remote
-                        mergedItems.add(r)
-                        localChanged = true
+                        // Present on remote, absent locally. Was it deleted locally, or just missing?
+                        val wasDeletedLocally = localLogs.any { it.itemId == id && it.actionType == "DELETE" && it.timestamp >= r.lastUpdatedAt }
+                        if (!wasDeletedLocally) {
+                            mergedItems.add(r)
+                            localItemsChanged = true
+                        }
                     } else if (l != null) {
-                        // Only on local (but wait, what if it was deleted on remote? 
-                        // For a simple syncing app, keeping local addition or just syncing it is safer).
-                        mergedItems.add(l)
-                        localChanged = true
+                        // Present locally, absent on remote. Was it deleted on remote, or newly created locally?
+                        val wasDeletedRemotely = remoteState.logs.any { it.itemId == id && it.actionType == "DELETE" && it.timestamp >= l.lastUpdatedAt }
+                        if (!wasDeletedRemotely && l.lastUpdatedAt > remoteState.lastUpdated) {
+                            mergedItems.add(l)
+                        } else {
+                            // Deleted on remote! Remove locally too
+                            localItemsChanged = true
+                        }
                     }
                 }
 
-                // 2. Merge Logs by matching UUID fields (unique lists)
-                val remoteLogMap = remoteState.logs.associateBy { it.id }
-                val localLogMap = localLogs.associateBy { it.id }
+                // 2. Merge Logs
+                val remoteLogIds = remoteState.logs.map { it.id }.toSet()
+                val localLogIds = localLogs.map { it.id }.toSet()
                 val mergedLogs = (remoteState.logs + localLogs).distinctBy { it.id }
-                val logCountDiff = mergedLogs.size - localLogs.size
+                val localLogsChanged = mergedLogs.size != localLogs.size
+
+                // 3. Merge Sales
+                val mergedSales = (remoteState.sales + localSales).distinctBy { it.id }
+                val localSalesChanged = mergedSales.size != localSales.size
+
+                val databaseUpdated = localItemsChanged || localLogsChanged || localSalesChanged
 
                 // Produce simulation push notifications for any NEW logs downloaded from *other users*
-                if (isRemoteNewer && logCountDiff > 0) {
+                if (databaseUpdated) {
                     val baseSyncTime = lastSyncTime
                     val incomingNewLogs = remoteState.logs.filter { 
-                        it.user != username && it.timestamp > baseSyncTime && localLogMap[it.id] == null 
+                        it.user != username && it.timestamp > baseSyncTime && !localLogIds.contains(it.id)
                     }.sortedBy { it.timestamp }
 
                     for (newLog in incomingNewLogs) {
@@ -335,35 +344,35 @@ class StockRepository(
                             )
                         )
                     }
+
+                    // Write back merged states locally
+                    stockDao.clearAllItems()
+                    stockDao.insertItems(mergedItems)
+
+                    stockDao.clearAllLogs()
+                    stockDao.insertLogs(mergedLogs)
+
+                    stockDao.clearAllTransactions()
+                    stockDao.insertTransactions(mergedSales)
                 }
-
-                // 3. Merge Sale Transactions
-                val mergedSales = (remoteState.sales + localSales).distinctBy { it.id }
-                
-                // Write back merged states locally
-                stockDao.clearAllItems()
-                stockDao.insertItems(mergedItems)
-
-                stockDao.clearAllLogs()
-                stockDao.insertLogs(mergedLogs)
-
-                stockDao.clearAllTransactions()
-                stockDao.insertTransactions(mergedSales)
 
                 // Update connected active device indicators dynamically with simple variability
                 _connectedDeviceCount.value = (2..4).random()
 
-                // If local database had changes that cloud didn't have, or if we consolidated,
-                // let's push back the combined master state to the cloud.
-                if (localChanged || mergedLogs.size > remoteState.logs.size || mergedSales.size > remoteState.sales.size) {
-                    val mergedMasterState = CloudState(
+                // Check if we have any newer local changes that are not on the remote
+                val hasNewerLocalChanges = localItems.any { it.lastUpdatedAt > remoteState.lastUpdated } ||
+                        localLogs.any { it.timestamp > remoteState.lastUpdated } ||
+                        localSales.any { it.timestamp > remoteState.lastUpdated }
+
+                if (hasNewerLocalChanges) {
+                    val stateToPush = CloudState(
                         lastUpdated = System.currentTimeMillis(),
                         lastUpdatedBy = username,
                         items = mergedItems,
                         logs = mergedLogs,
                         sales = mergedSales
                     )
-                    pushToCloud(roomName, mergedMasterState)
+                    pushToCloud(roomName, stateToPush)
                 }
 
                 lastSyncTime = System.currentTimeMillis()

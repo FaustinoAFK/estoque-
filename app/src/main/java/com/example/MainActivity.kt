@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         val viewModel = ViewModelProvider(this, factory)[StockViewModel::class.java]
 
         setContent {
-            MyApplicationTheme {
+            MyApplicationTheme(darkTheme = false, dynamicColor = false) {
                 AdaptiveBentoLayout(viewModel = viewModel)
             }
         }
