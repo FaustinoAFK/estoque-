@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.faustinoafk.estoque"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.example"
+    applicationId = "com.faustinoafk.estoque"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
