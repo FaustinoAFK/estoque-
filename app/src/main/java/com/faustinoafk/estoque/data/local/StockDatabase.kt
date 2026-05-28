@@ -33,7 +33,6 @@ abstract class StockDatabase : RoomDatabase() {
                     StockDatabase::class.java,
                     "stocksync_database"
                 )
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

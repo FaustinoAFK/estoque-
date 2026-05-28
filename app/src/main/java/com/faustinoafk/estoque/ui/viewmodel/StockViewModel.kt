@@ -23,7 +23,7 @@ class StockViewModel(
 ) : ViewModel() {
 
     // Theme active tab: 0=Painel, 1=Estoque, 2=Vendas, 3=Relatórios
-    private val _activeTab = MutableStateFlow(0)
+    private val _activeTab = MutableStateFlow(1)
     val activeTab: StateFlow<Int> = _activeTab.asStateFlow()
 
     // Configuration / User details (persisted in shared preferences)

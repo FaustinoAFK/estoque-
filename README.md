@@ -1,21 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# StockSync Pro
 
-# Run and deploy your AI Studio app
+Aplicativo Android pessoal para controle de estoque, vendas e lucro, com banco local Room e sincronizacao simples entre aparelhos usando uma sala compartilhada no KVDB.
 
-This contains everything you need to run your app locally.
+## Tecnologias
 
-View your app in AI Studio: https://ai.studio/apps/196d5a1a-dbc6-4971-9ee2-ef27ec6a309c
+- Kotlin
+- Android / Jetpack Compose
+- Room
+- Coroutines / Flow
+- Gradle Kotlin DSL
 
-## Run Locally
+## Como Rodar
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+**Pre-requisito:** Android Studio com SDK Android instalado.
 
+1. Abra o Android Studio.
+2. Selecione **Open** e escolha esta pasta.
+3. Aguarde o sync do Gradle.
+4. Rode o app em um emulador ou aparelho fisico.
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+## Comandos Uteis
+
+```powershell
+.\gradlew.bat test
+.\gradlew.bat assembleDebug
+```
+
+## Observacoes
+
+- O app usa armazenamento local no aparelho e sincronizacao por sala.
+- O arquivo `.env` nao e necessario para o funcionamento atual do app.
+- O APK debug e gerado em `app/build/outputs/apk/debug/`.
