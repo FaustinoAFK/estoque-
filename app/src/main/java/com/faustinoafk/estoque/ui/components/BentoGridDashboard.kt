@@ -35,12 +35,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.faustinoafk.estoque.BuildConfig
 import com.faustinoafk.estoque.data.model.ActionLog
 import com.faustinoafk.estoque.data.model.InAppNotification
 import com.faustinoafk.estoque.data.model.SaleTransaction
 import com.faustinoafk.estoque.data.model.StockItem
+import com.faustinoafk.estoque.update.AppUpdateInstaller
 import com.faustinoafk.estoque.ui.viewmodel.StockViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -1561,6 +1564,10 @@ fun ConfigDialog(
 ) {
     var rawInputUser by varOf(currentUsername)
     var rawInputRoom by varOf(currentRoom)
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var updateStatus by varOf<String?>(null)
+    var isUpdating by varOf(false)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1622,6 +1629,48 @@ fun ConfigDialog(
                         .fillMaxWidth()
                         .testTag("config_roomname_input")
                 )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        isUpdating = true
+                        updateStatus = "Preparando atualizacao..."
+                        coroutineScope.launch {
+                            val result = AppUpdateInstaller.downloadAndOpenInstaller(
+                                context = context.applicationContext,
+                                apkUrl = BuildConfig.UPDATE_APK_URL
+                            )
+                            updateStatus = result.fold(
+                                onSuccess = { "Instalador aberto. Confirme a atualizacao no Android." },
+                                onFailure = { it.message ?: "Nao foi possivel iniciar a atualizacao." }
+                            )
+                            isUpdating = false
+                        }
+                    },
+                    enabled = !isUpdating,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("config_update_app_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Atualizar app",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isUpdating) "Baixando..." else "Atualizar app")
+                }
+
+                updateStatus?.let { message ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = message,
+                        fontSize = 11.sp,
+                        color = BentoTextSecondary
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
 

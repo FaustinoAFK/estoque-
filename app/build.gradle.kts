@@ -6,6 +6,30 @@ plugins {
   alias(libs.plugins.secrets)
 }
 
+fun readEnvValue(name: String): String {
+  val envValue = System.getenv(name)
+  if (!envValue.isNullOrBlank()) return envValue
+
+  val envFile = rootProject.file(".env")
+  if (envFile.exists()) {
+    envFile.readLines().forEach { line ->
+      val trimmed = line.trim()
+      if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+        val separatorIndex = trimmed.indexOf('=')
+        if (separatorIndex > 0 && trimmed.substring(0, separatorIndex).trim() == name) {
+          return trimmed.substring(separatorIndex + 1).trim()
+        }
+      }
+    }
+  }
+
+  return ""
+}
+
+fun quotedBuildConfigString(value: String): String {
+  return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}
+
 android {
   namespace = "com.faustinoafk.estoque"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -18,6 +42,7 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    buildConfigField("String", "UPDATE_APK_URL", quotedBuildConfigString(readEnvValue("UPDATE_APK_URL")))
   }
 
   signingConfigs {

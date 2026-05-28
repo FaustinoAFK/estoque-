@@ -29,5 +29,5 @@ Aplicativo Android pessoal para controle de estoque, vendas e lucro, com banco l
 ## Observacoes
 
 - O app usa armazenamento local no aparelho e sincronizacao por sala.
-- O arquivo `.env` nao e necessario para o funcionamento atual do app.
+- Para usar o botao de atualizacao do app, crie um `.env` com `UPDATE_APK_URL=https://link-direto/estoque-debug.apk`.
 - O APK debug e gerado em `app/build/outputs/apk/debug/`.
