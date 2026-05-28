@@ -28,6 +28,9 @@ jobs:
       - name: Allow Gradle wrapper execution
         run: chmod +x ./gradlew
 
+      - name: Restore debug keystore
+        run: base64 -d debug.keystore.base64 > debug.keystore
+
       - name: Build APK
         env:
           UPDATE_APK_URL: https://github.com/${{ github.repository }}/releases/latest/download/estoque-debug.apk
