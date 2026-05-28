@@ -303,12 +303,32 @@ class StockRepository(
                                 l.lastUpdatedAt > lastSyncTime
 
                         if (bothChangedSinceLastSync) {
-                            stockDao.insertNotification(
-                                InAppNotification(
-                                    message = "Conflito de sincronização em ${l.name}: dois aparelhos editaram o mesmo produto. A alteração mais recente foi mantida.",
-                                    timestamp = maxOf(r.lastUpdatedAt, l.lastUpdatedAt)
-                                )
+                            val mergedConcurrentItem = mergeConcurrentItemMovements(
+                                localItem = l,
+                                remoteItem = r,
+                                localLogs = localLogs,
+                                remoteLogs = remoteState.logs,
+                                username = username
                             )
+
+                            if (mergedConcurrentItem != null) {
+                                mergedItems.add(mergedConcurrentItem)
+                                localItemsChanged = mergedConcurrentItem != l
+                                stockDao.insertNotification(
+                                    InAppNotification(
+                                        message = "Sincronização combinada em ${mergedConcurrentItem.name}: movimentos feitos em dois aparelhos foram somados.",
+                                        timestamp = maxOf(r.lastUpdatedAt, l.lastUpdatedAt)
+                                    )
+                                )
+                                continue
+                            } else {
+                                stockDao.insertNotification(
+                                    InAppNotification(
+                                        message = "Conflito de sincronização em ${l.name}: dois aparelhos editaram o mesmo produto. A alteração mais recente foi mantida.",
+                                        timestamp = maxOf(r.lastUpdatedAt, l.lastUpdatedAt)
+                                    )
+                                )
+                            }
                         }
 
                         if (r.lastUpdatedAt >= l.lastUpdatedAt) {
@@ -419,6 +439,45 @@ class StockRepository(
             _syncOnline.value = false
         } finally {
             _isSyncing.value = false
+        }
+    }
+
+    private fun mergeConcurrentItemMovements(
+        localItem: StockItem,
+        remoteItem: StockItem,
+        localLogs: List<ActionLog>,
+        remoteLogs: List<ActionLog>,
+        username: String
+    ): StockItem? {
+        val localMovements = movementLogsAfterLastSync(localLogs, localItem.id)
+        val remoteMovements = movementLogsAfterLastSync(remoteLogs, localItem.id)
+        val mergedMovements = (localMovements + remoteMovements).distinctBy { it.id }
+
+        if (mergedMovements.size < 2) return null
+
+        val localDelta = localMovements.sumOf { it.quantityChanged }
+        val remoteDelta = remoteMovements.sumOf { it.quantityChanged }
+        val mergedDelta = mergedMovements.sumOf { it.quantityChanged }
+
+        val baseFromLocal = localItem.quantity - localDelta
+        val baseFromRemote = remoteItem.quantity - remoteDelta
+        if (baseFromLocal != baseFromRemote) return null
+
+        val latestItem = if (remoteItem.lastUpdatedAt >= localItem.lastUpdatedAt) remoteItem else localItem
+        val mergedQuantity = (baseFromLocal + mergedDelta).coerceAtLeast(0)
+
+        return latestItem.copy(
+            quantity = mergedQuantity,
+            lastUpdatedBy = username,
+            lastUpdatedAt = maxOf(localItem.lastUpdatedAt, remoteItem.lastUpdatedAt, System.currentTimeMillis())
+        )
+    }
+
+    private fun movementLogsAfterLastSync(logs: List<ActionLog>, itemId: String): List<ActionLog> {
+        return logs.filter {
+            it.itemId == itemId &&
+                    it.timestamp > lastSyncTime &&
+                    it.actionType in setOf("ADD_STOCK", "REMOVE_STOCK", "SALE", "UPDATE")
         }
     }
 
