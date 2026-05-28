@@ -294,9 +294,26 @@ class StockRepository(
                     val r = remoteItemMap[id]
                     val l = localItemMap[id]
                     if (r != null && l != null) {
+                        val itemChanged = r.quantity != l.quantity ||
+                                r.name != l.name ||
+                                r.unitCost != l.unitCost ||
+                                r.unitPrice != l.unitPrice
+                        val bothChangedSinceLastSync = itemChanged &&
+                                r.lastUpdatedAt > lastSyncTime &&
+                                l.lastUpdatedAt > lastSyncTime
+
+                        if (bothChangedSinceLastSync) {
+                            stockDao.insertNotification(
+                                InAppNotification(
+                                    message = "Conflito de sincronização em ${l.name}: dois aparelhos editaram o mesmo produto. A alteração mais recente foi mantida.",
+                                    timestamp = maxOf(r.lastUpdatedAt, l.lastUpdatedAt)
+                                )
+                            )
+                        }
+
                         if (r.lastUpdatedAt >= l.lastUpdatedAt) {
                             mergedItems.add(r)
-                            if (r.quantity != l.quantity || r.name != l.name || r.unitCost != l.unitCost || r.unitPrice != l.unitPrice) {
+                            if (itemChanged) {
                                 localItemsChanged = true
                             }
                         } else {

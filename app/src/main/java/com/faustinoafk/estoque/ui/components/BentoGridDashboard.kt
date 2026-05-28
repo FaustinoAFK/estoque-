@@ -1593,6 +1593,13 @@ fun ConfigDialog(
                     fontSize = 11.sp,
                     color = Color.Gray
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Versão instalada: ${BuildConfig.VERSION_NAME}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BentoTextSecondary
+                )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -1635,15 +1642,15 @@ fun ConfigDialog(
                 OutlinedButton(
                     onClick = {
                         isUpdating = true
-                        updateStatus = "Preparando atualizacao..."
+                        updateStatus = "Preparando atualização..."
                         coroutineScope.launch {
                             val result = AppUpdateInstaller.downloadAndOpenInstaller(
                                 context = context.applicationContext,
                                 apkUrl = BuildConfig.UPDATE_APK_URL
                             )
                             updateStatus = result.fold(
-                                onSuccess = { "Instalador aberto. Confirme a atualizacao no Android." },
-                                onFailure = { it.message ?: "Nao foi possivel iniciar a atualizacao." }
+                                onSuccess = { "Instalador aberto. Confirme a atualização no Android." },
+                                onFailure = { it.message ?: "Não foi possível iniciar a atualização." }
                             )
                             isUpdating = false
                         }
